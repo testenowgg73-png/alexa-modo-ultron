@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ultron</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;500;600&display=swap">
+<style>
+  /* Layout: tela preta, anel Cortana no terço superior, texto abaixo, faixa em degradê colada no rodapé */
+  :root {
+    --bg: #000000;
+    --ring: #ff0000;
+    --halo: #7a1a1f;
+    --bar-dim: #6e0000;
+    --text: #e9d6d6;
+    --text-dim: #8a6a6a;
+    --font-display: "Orbitron", "Eurostile", "Arial Narrow", sans-serif;
+    --font-body: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+    --size: min(36vmin, 240px);
+    --amp: 0;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-body); overflow: hidden; user-select: none; -webkit-user-select: none; }
+  main { height: 100%; display: flex; flex-direction: column; align-items: center;
+    padding: 16px 16px 0 16px; }
+
+  .stage { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding-bottom: 24px; min-height: 0; }
+
+  /* Orbe */
+  .orb { position: relative; width: var(--size); height: var(--size); border: 0; background: none; padding: 0;
+    cursor: pointer; border-radius: 50%; outline: none; }
+  .orb:focus-visible { outline: 2px solid var(--ring); outline-offset: 8px; }
+  .halo, .core, .spin { position: absolute; border-radius: 50%; }
+  .halo { inset: 0; border: calc(var(--size) * 0.077) solid var(--halo);
+    transform: scale(calc(1 + var(--amp) * 0.12)); transition: transform 90ms linear; }
+  .core { inset: calc(var(--size) * 0.077 + 0px); border: calc(var(--size) * 0.077) solid var(--ring);
+    box-shadow: 0 0 calc(var(--size) * 0.12) rgba(255,0,0,.35), inset 0 0 calc(var(--size) * 0.08) rgba(255,0,0,.25);
+    transform: scale(calc(1 + var(--amp) * 0.06)); transition: transform 90ms linear; }
+  .spin { inset: 0; border: calc(var(--size) * 0.03) solid transparent; border-top-color: #ff5a4d;
+    opacity: 0; }
+
+  body[data-state="idle"] .core { animation: breathe 5s ease-in-out infinite; }
+  body[data-state="listening"] .halo { animation: listen 1.6s ease-in-out infinite; }
+  body[data-state="listening"] .core { box-shadow: 0 0 calc(var(--size) * 0.22) rgba(255,0,0,.55), inset 0 0 calc(var(--size) * 0.1) rgba(255,0,0,.35); }
+  body[data-state="thinking"] .spin { opacity: 1; animation: turn 1.1s linear infinite; }
+  body[data-state="thinking"] .core { opacity: .75; }
+  body[data-state="speaking"] .core { box-shadow: 0 0 calc(var(--size) * 0.28) rgba(255,0,0,.6), inset 0 0 calc(var(--size) * 0.12) rgba(255,40,40,.4); }
+
+  @keyframes breathe { 0%,100% { opacity: .9 } 50% { opacity: 1 } }
+  @keyframes listen { 0%,100% { transform: scale(1); opacity: .8 } 50% { transform: scale(1.06); opacity: 1 } }
+  @keyframes turn { to { transform: rotate(360deg) } }
+
+  /* Texto */
+  .status { font-family: var(--font-display); font-weight: 500; font-size: 12px; letter-spacing: .34em;
+    color: var(--text-dim); text-transform: uppercase; text-align: center; margin: 0; }
+  body[data-state="listening"] .status, body[data-state="speaking"] .status { color: #ff4d4d; }
+  .heard { margin: 0; max-width: 92vw; text-align: center; font-size: 18px;
+    font-weight: 500; line-height: 1.35; color: var(--text-dim); min-height: 1.4em;  }
+  .reply { margin: 0; max-width: 92vw; max-height: 22vh; overflow: auto; text-align: center;
+    font-size: 21px; font-weight: 500; line-height: 1.35; color: var(--text);  user-select: text; }
+
+  /* Faixa estilo Alexa */
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; height: 14px;
+    background: linear-gradient(90deg, #4a0000, var(--bar-dim) 35%, #8a0a0a 50%, var(--bar-dim) 65%, #4a0000);
+    transition: height .3s ease; overflow: hidden; }
+  .bar::before { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease;
+    background: linear-gradient(90deg, #3a0000 0%, #ff1a1a 18%, #ff7a3d 32%, #ff1a1a 46%, #8a0000 60%, #ff1a1a 76%, #ff7a3d 88%, #3a0000 100%);
+    background-size: 220% 100%; }
+  body[data-state="listening"] .bar, body[data-state="thinking"] .bar, body[data-state="speaking"] .bar { height: 22px; }
+  body[data-state="listening"] .bar::before { opacity: 1; animation: flow 2.8s linear infinite; }
+  body[data-state="thinking"] .bar::before { opacity: 1; animation: flow 1.2s linear infinite; }
+  body[data-state="speaking"] .bar::before { opacity: 1; animation: flow 1.8s linear infinite; filter: brightness(calc(.85 + var(--amp) * .5)); }
+  @keyframes flow { from { background-position: 0% 0 } to { background-position: -220% 0 } }
+
+  /* Configurações */
+  .gear { position: fixed; top: 10px; right: 10px;
+    width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: #4d2a2a; cursor: pointer; z-index: 5; }
+  .gear:hover, .gear:focus-visible { color: #ff4d4d; outline: none; }
+  .gear svg { width: 22px; height: 22px; }
+  .wakebadge { position: fixed; top: 18px; left: 16px;
+    font-family: var(--font-display); font-size: 10px; letter-spacing: .25em; color: #7a1a1f; text-transform: uppercase; }
+  .wakebadge[hidden] { display: none; }
+
+  .panel { position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 10; display: flex; align-items: center; justify-content: center;
+    padding: 16px; }
+  .panel[hidden] { display: none; }
+  .sheet { width: 100%; max-width: 480px; max-height: 100%; overflow: auto; background: #0b0505; border: 1px solid #3a1010; border-radius: 6px;
+    padding: 20px; display: flex; flex-direction: column; gap: 16px; user-select: text; }
+  .sheet h2 { margin: 0; font-family: var(--font-display); font-size: 14px; letter-spacing: .3em; color: #ff4d4d; font-weight: 700; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
+  input[type=text], input[type=url], input[type=password] { background: #000; border: 1px solid #4a1515; color: var(--text);
+    font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 4px; }
+  input:focus-visible { outline: 2px solid #ff3030; outline-offset: 1px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input[type=checkbox] { width: 20px; height: 20px; accent-color: #ff1a1a; }
+  .hint { font-size: 13px; color: #6d5555; line-height: 1.4; margin: 0; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  button.b { font-family: var(--font-display); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; padding: 12px 16px;
+    border-radius: 4px; border: 1px solid #5a1515; background: #1a0707; color: var(--text); cursor: pointer; }
+  button.b.primary { background: #b00000; border-color: #ff2a2a; color: #fff; }
+  button.b:focus-visible { outline: 2px solid #ff3030; outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .core, .halo, .spin, .bar::before { animation: none !important; }
+  }
+  @media (orientation: landscape) and (max-height: 520px) {
+    :root { --size: min(30vmin, 150px); }
+    .reply { max-height: 16vh; }
+  }
+
+</style>
+</head>
+<body data-state="idle">
+<main>
+  <div class="stage">
+    <button class="orb" id="orb" aria-label="Falar com o Ultron">
+      <span class="halo"></span>
+      <span class="core"></span>
+      <span class="spin"></span>
+    </button>
+    <p class="status" id="status" role="status" aria-live="polite">Toque para falar</p>
+    <p class="heard" id="heard"></p>
+    <p class="reply" id="reply"></p>
+  </div>
+</main>
+<div class="bar" aria-hidden="true"></div>
+<div class="wakebadge" id="wakebadge" hidden>Diga "Ultron"</div>
+
+<button class="gear" id="gear" aria-label="Configurações">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+</button>
+
+<div class="panel" id="panel" hidden style="display:none;">
+  <form class="sheet" id="form">
+    <h2>ULTRON · CONFIGURAÇÕES</h2>
+    <label for="endpoint">Servidor próprio (opcional; deixe vazio para usar IA sem chave)
+      <input type="url" id="endpoint" placeholder="Vazio = IA gratuita sem chave" autocomplete="off">
+    </label>
+    <label for="aiSite">Site da IA
+      <input type="url" id="aiSite" placeholder="https://pollinations.ai/" autocomplete="off">
+    </label>
+    <div class="btns">
+      <button type="button" class="b" id="openAI">Abrir site da IA</button>
+    </div>
+    <p class="hint">Com o servidor próprio vazio, o Ultron usa uma API pública de geração de texto que não pede chave: Pollinations Text. Ela depende de internet, pode ter limites temporários e não garante pesquisa na web em tempo real. O link do site apenas abre a página da IA.</p>
+    <label for="rate">Velocidade da voz
+      <input type="range" id="rate" min="0.7" max="1.4" step="0.05" value="1">
+    </label>
+    <label class="row" for="wake"><input type="checkbox" id="wake"> Ficar escutando a palavra "Ultron" (mãos livres)</label>
+    <div class="btns">
+      <button type="button" class="b" id="test">Testar voz</button>
+      <button type="button" class="b" id="close">Fechar</button>
+      <button type="submit" class="b primary">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var state = 'idle', rec = null, wakeOn = false, speakToken = 0, envRaf = 0;
+  var labels = { idle: 'Toque para falar', listening: 'Ouvindo', thinking: 'Pensando', speaking: 'Falando' };
+
+  var cfg = { endpoint: '', aiSite: 'https://pollinations.ai/', token: '', rate: 1, wake: false };
+  try { var s = JSON.parse(localStorage.getItem('ultron-cfg') || '{}'); for (var k in s) cfg[k] = s[k]; } catch (e) {}
+  function save() { try { localStorage.setItem('ultron-cfg', JSON.stringify(cfg)); } catch (e) {} }
+
+  function setState(st) {
+    state = st;
+    document.body.setAttribute('data-state', st);
+    $('status').textContent = (st === 'idle' && wakeOn) ? 'Diga "Ultron"' : labels[st];
+    if (st === 'speaking') startEnvelope(); else stopEnvelope();
+  }
+
+  /* Pulso da voz: envelope suave que simula a amplitude enquanto fala */
+  function startEnvelope() {
+    stopEnvelope();
+    var t0 = performance.now(), target = 0.5, cur = 0, next = 0;
+    (function tick(now) {
+      if (now > next) { target = 0.25 + Math.random() * 0.75; next = now + 70 + Math.random() * 110; }
+      cur += (target - cur) * 0.25;
+      var wob = 0.15 * Math.sin((now - t0) / 90);
+      document.documentElement.style.setProperty('--amp', Math.max(0, Math.min(1, cur + wob)).toFixed(3));
+      envRaf = requestAnimationFrame(tick);
+    })(t0);
+  }
+  function stopEnvelope() {
+    cancelAnimationFrame(envRaf);
+    document.documentElement.style.setProperty('--amp', '0');
+  }
+
+  /* Voz */
+  var voice = null;
+  function pickVoice() {
+    var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+    voice = vs.filter(function (v) { return /^pt[-_]BR/i.test(v.lang); })[0] ||
+            vs.filter(function (v) { return /^pt/i.test(v.lang); })[0] || null;
+  }
+  if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+  function chunks(text) {
+    var parts = text.replace(/\s+/g, ' ').match(/[^.!?;\n]+[.!?;]?/g) || [text];
+    var out = [], buf = '';
+    parts.forEach(function (p) {
+      if ((buf + p).length > 180 && buf) { out.push(buf); buf = p; } else buf += p;
+    });
+    if (buf.trim()) out.push(buf);
+    return out;
+  }
+
+  function speak(text, done) {
+    if (!window.speechSynthesis) { setState('idle'); if (done) done(); return; }
+    speechSynthesis.cancel();
+    var my = ++speakToken, list = chunks(text), i = 0;
+    setState('speaking');
+    (function next() {
+      if (my !== speakToken) return;
+      if (i >= list.length) { setState('idle'); if (done) done(); return; }
+      var u = new SpeechSynthesisUtterance(list[i++]);
+      u.lang = 'pt-BR'; if (voice) u.voice = voice; u.rate = Math.min(1.15, Math.max(0.75, cfg.rate * 0.90)); u.pitch = 0.78;
+      u.onend = next;
+      u.onerror = function () { if (my === speakToken) { setState('idle'); if (done) done(); } };
+      speechSynthesis.speak(u);
+    })();
+  }
+  function stopSpeaking() { speakToken++; if (window.speechSynthesis) speechSynthesis.cancel(); stopEnvelope(); }
+
+  /* Reconhecimento */
+  function stopRec() {
+    if (rec) { rec.onend = null; rec.onerror = null; try { rec.abort(); } catch (e) {} rec = null; }
+  }
+
+  function showError(msg) { $('reply').textContent = msg; setState('idle'); }
+
+  function listen(wake) {
+    if (!SR) { showError('Este navegador não tem reconhecimento de voz. Abra no Chrome.'); return; }
+    stopRec();
+    var r = rec = new SR();
+    r.lang = 'pt-BR'; r.interimResults = !wake; r.continuous = !!wake; r.maxAlternatives = 1;
+    r.onresult = function (e) {
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var res = e.results[i], t = res[0].transcript.trim();
+        if (wake) { if (res.isFinal) onWake(t); }
+        else {
+          $('heard').textContent = t;
+          if (res.isFinal) { r.onend = null; rec = null; ask(t); }
+        }
+      }
+    };
+    r.onerror = function (e) {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        wakeOn = false; showError('Permita o uso do microfone nas configurações do navegador.');
+      } else if (e.error === 'no-speech' && !wake) { setState('idle'); }
+    };
+    r.onend = function () {
+      rec = null;
+      if (wake && wakeOn && state === 'idle') setTimeout(function () { listen(true); }, 250);
+      else if (state === 'listening') setState('idle');
+    };
+    try { r.start(); } catch (e) { return; }
+    if (!wake) { $('heard').textContent = ''; $('reply').textContent = ''; setState('listening'); }
+  }
+
+  function onWake(t) {
+    var i = t.toLowerCase().indexOf('ultron');
+    if (i < 0) return;
+    var cmd = t.slice(i + 6).replace(/^[\s,.:;!?-]+/, '');
+    stopRec();
+    if (cmd) { $('heard').textContent = cmd; $('reply').textContent = ''; ask(cmd); }
+    else listen(false);
+  }
+
+  function resume() { if (wakeOn && state === 'idle') listen(true); }
+
+  /* Chamada ao Ultron */
+  function extract(data) {
+    if (typeof data === 'string') return data;
+    if (!data || typeof data !== 'object') return '';
+    var keys = ['resposta', 'reply', 'response', 'text', 'texto', 'message', 'mensagem', 'output', 'answer', 'content'];
+    for (var i = 0; i < keys.length; i++) {
+      if (typeof data[keys[i]] === 'string') return data[keys[i]];
+    }
+    /* Compatibilidade com APIs no formato OpenAI */
+    try {
+      if (data.choices && data.choices[0] && data.choices[0].message &&
+          typeof data.choices[0].message.content === 'string') {
+        return data.choices[0].message.content;
+      }
+      if (data.choices && data.choices[0] && typeof data.choices[0].text === 'string') {
+        return data.choices[0].text;
+      }
+      if (data.output && data.output[0] && data.output[0].content &&
+          data.output[0].content[0] && typeof data.output[0].content[0].text === 'string') {
+        return data.output[0].content[0].text;
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  function ask(text) {
+    if (!text) { setState('idle'); resume(); return; }
+    stopRec();
+    setState('thinking');
+    if (!window.fetch && !window.XMLHttpRequest) {
+      var legacyMsg = 'Este navegador não oferece suporte às conexões necessárias. Abra o ULTRON em um navegador atualizado.';
+      $('reply').textContent = legacyMsg; speak(legacyMsg, resume); return;
+    }
+
+    var useCustom = !!cfg.endpoint;
+    var url, headers, body, method;
+    if (useCustom) {
+      url = cfg.endpoint;
+      headers = { 'Content-Type': 'application/json' };
+      body = JSON.stringify({ mensagem: text, idioma: 'pt-BR' });
+      method = 'POST';
+    } else {
+      var prompt = 'Você é ULTRON, um assistente virtual objetivo, educado e futurista. Responda sempre em português brasileiro. Responda diretamente e com clareza à pergunta do usuário. Se não souber ou não puder verificar uma informação atual, diga isso claramente; nunca invente que pesquisou na internet. Pergunta do usuário: ' + text;
+      url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt);
+      headers = {};
+      body = null;
+      method = 'GET';
+    }
+
+    var finished = false;
+    var timer = setTimeout(function () {
+      if (finished) return;
+      finished = true;
+      var msg = 'A IA demorou demais para responder. Verifique sua conexão e tente novamente.';
+      $('reply').textContent = msg; speak(msg, resume);
+    }, 60000);
+
+    function success(data) {
+      if (finished) return;
+      finished = true; clearTimeout(timer);
+      var out = '';
+      if (!useCustom) {
+        if (typeof data === 'string') out = data;
+        else out = extract(data);
+        if (!out && data && data.error && data.error.message) out = 'Erro da IA: ' + data.error.message;
+      } else {
+        out = extract(data);
+      }
+      out = (out || '').trim();
+      if (!out) out = 'A IA respondeu, mas não encontrei texto na resposta. Tente fazer a pergunta novamente.';
+      $('reply').textContent = out;
+      speak(out, resume);
+    }
+    function failure(message) {
+      if (finished) return;
+      finished = true; clearTimeout(timer);
+      var msg = 'Não foi possível conectar à IA. Verifique sua internet ou tente novamente mais tarde.';
+      if (message) msg += ' Detalhe: ' + message;
+      $('reply').textContent = msg;
+      speak('Não consegui conectar à inteligência artificial. Verifique a conexão com a internet.', resume);
+    }
+
+    if (window.fetch) {
+      fetch(url, { method: method, headers: headers, body: body })
+        .then(function (r) {
+          return r.text().then(function (t) {
+            var data;
+            try { data = JSON.parse(t); } catch (e) { data = t; }
+            if (!r.ok) throw new Error(data && data.error && data.error.message ? data.error.message : 'HTTP ' + r.status);
+            return data;
+          });
+        })
+        .then(success)
+        .catch(function (err) {
+          /* Tenta uma segunda forma de conexão caso fetch falhe. */
+          if (finished) return;
+          try {
+            var xhr2 = new XMLHttpRequest();
+            xhr2.open(method, url, true);
+            for (var h2 in headers) xhr2.setRequestHeader(h2, headers[h2]);
+            xhr2.onreadystatechange = function () {
+              if (xhr2.readyState !== 4 || finished) return;
+              var data2;
+              try { data2 = JSON.parse(xhr2.responseText); } catch (e2) { data2 = xhr2.responseText; }
+              if (xhr2.status >= 200 && xhr2.status < 300) success(data2);
+              else failure('HTTP ' + xhr2.status + (err && err.message ? ' / ' + err.message : ''));
+            };
+            xhr2.onerror = function () {
+              failure('A conexão HTTPS/CORS foi bloqueada pelo navegador ou pelo serviço.');
+            };
+            xhr2.send(body);
+          } catch (e3) {
+            failure('Falha de conexão: ' + (err && err.message ? err.message : 'fetch') + '.');
+          }
+        });
+    } else {
+      /* Alternativa de conexão para navegadores que não suportam fetch. */
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        for (var h in headers) xhr.setRequestHeader(h, headers[h]);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          var data;
+          try { data = JSON.parse(xhr.responseText); } catch (e) { data = xhr.responseText; }
+          if (xhr.status >= 200 && xhr.status < 300) success(data);
+          else failure(data && data.error && data.error.message ? data.error.message : 'HTTP ' + xhr.status);
+        };
+        xhr.onerror = function () { failure('falha de rede ou CORS'); };
+        xhr.send(body);
+      } catch (e) { failure(e && e.message); }
+    }
+  }
+
+  /* Interação */
+  function goFull() {
+    var el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) { try { var fs = el.requestFullscreen(); if (fs && fs.catch) fs.catch(function () {}); } catch (e) {} }
+    if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {});
+  });
+
+  function onTap(el, fn) {
+    var touched = false;
+    el.addEventListener('touchend', function (e) {
+      touched = true;
+      if (e && e.preventDefault) e.preventDefault();
+      fn();
+      setTimeout(function () { touched = false; }, 700);
+    }, false);
+    el.addEventListener('click', function (e) {
+      if (touched) {
+        if (e && e.preventDefault) e.preventDefault();
+        return;
+      }
+      fn();
+    }, false);
+  }
+
+  onTap($('orb'), function () {
+    goFull();
+    if (state === 'speaking') { stopSpeaking(); setState('idle'); resume(); return; }
+    if (state === 'listening') { stopRec(); setState('idle'); resume(); return; }
+    if (state === 'thinking') return;
+    listen(false);
+  });
+
+  /* Configurações */
+  function applyWake() {
+    wakeOn = !!cfg.wake && !!SR;
+    $('wakebadge').hidden = !wakeOn;
+    if (!wakeOn) { if (state === 'idle') stopRec(); }
+    setState(state);
+  }
+  onTap($('gear'), function () {
+    $('endpoint').value = cfg.endpoint; $('aiSite').value = cfg.aiSite || 'https://pollinations.ai/';
+    $('rate').value = cfg.rate; $('wake').checked = !!cfg.wake;
+    $('panel').hidden = false; $('panel').style.display = 'flex';
+  });
+  onTap($('openAI'), function () {
+    var url = $('aiSite').value || cfg.aiSite || 'https://pollinations.ai/';
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    window.location.href = url;
+  });
+  onTap($('close'), function () { $('panel').hidden = true; $('panel').style.display = 'none'; });
+  onTap($('test'), function () {
+    cfg.rate = parseFloat($('rate').value) || 1;
+    $('panel').hidden = true; $('panel').style.display = 'none';
+    speak('Olá. Eu sou o Ultron. Sistemas ativos. Estou pronto para receber suas instruções.');
+  });
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    cfg.endpoint = $('endpoint').value.trim(); cfg.aiSite = $('aiSite').value.trim() || 'https://pollinations.ai/'; cfg.token = '';
+    cfg.rate = parseFloat($('rate').value) || 1; cfg.wake = $('wake').checked;
+    save(); $('panel').hidden = true; $('panel').style.display = 'none';
+    stopRec(); applyWake(); resume();
+  });
+
+  applyWake();
+})();
+</script>
+</body>
+</html>
